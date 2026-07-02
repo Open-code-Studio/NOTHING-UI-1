@@ -12,10 +12,12 @@ NOTHING UI 是 OPEN OS 操作系统的默认界面设计语言，基于 Material
 ## 技术决策
 - 设计规范文档：`DESIGN_SPEC.md`
 - 默认深色模式，浅色模式作为辅助方案
-- 零圆角（border-radius: 0），硬阴影（无 blur）
+- 圆角：2px 极微圆角（`--radius-sm`），浮层 4px（`--radius-md`）
+- 阴影：6 级层叠硬阴影（`--shadow-0` ~ `--shadow-5`），低层锐利，高层微模糊
+- Surface：6 层细粒度递进（`--surface-0` ~ `--surface-5`，色差 ΔL 1.0-2.5）
 - 动效 ≤200ms
 - 基础网格单位：4px
-- 强调色：Cyan (#00BCD4) 为默认，Green (#4CAF50) 和 Orange (#FF9800) 为预置选项
+- 强调色：Cyan (#00BCD4) 为默认，Green (#4AA26F) 和 Orange (#FF9800) 为预置选项
 - 字体栈：Inter > SF Pro Text > Segoe UI > Roboto > CJK fallback
 - 等宽字体：JetBrains Mono > SF Mono > Cascadia Code > Fira Code
 
