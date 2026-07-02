@@ -1,179 +1,92 @@
-import { useState, useMemo } from 'react';
-import {
-  Button,
-  Card,
-  ListItem,
-  ProgressBar,
-  Tabs,
-  SearchBar,
-  StatusBadge,
-  SectionHeader,
-} from './components';
+import { useState, useEffect, useRef } from 'react';
+import { Button, Card, ListItem, ProgressBar, Tabs, SearchBar, Spinner, StatusBadge } from './components';
 import './App.css';
 
-/* ── Mock Data ── */
+/* ── Icons ── */
+const Svg = ({ d, children }: { d?: string; children?: any }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+    {d ? <path d={d} /> : children}
+  </svg>
+);
+const SearchIcon = () => <Svg d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3" />;
+const PkgIcon = () => <Svg><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M12 4v16M2 12h20" /></Svg>;
+const CheckIcon = () => <Svg d="M20 6 9 17l-5-5" />;
+const AlertIcon = () => <Svg><path d="M12 2 2 22h20Z" /><line x1="12" y1="9" x2="12" y2="13" /><circle cx="12" cy="17" r="0.5" fill="currentColor" /></Svg>;
+const SettingsIcon = () => <Svg><circle cx="12" cy="12" r="3" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></Svg>;
+const ChevronIcon = () => <Svg d="m9 18 6-6-6-6" />;
 
-interface Package {
-  name: string;
-  version: string;
-  status: 'installed' | 'updatable' | 'available';
-  description: string;
-  license: string;
-  size: string;
-  dependencies: string[];
-  files: { path: string; size: string }[];
-}
+/* ── Sections ── */
+type Section = 'buttons' | 'cards' | 'list-items' | 'tabs' | 'progress' | 'search' | 'spinner' | 'badges' | 'typography' | 'colors';
 
-const packages: Package[] = [
-  {
-    name: 'curl', version: '8.12.1', status: 'installed',
-    description: '命令行 URL 传输工具及库。支持 HTTP/2、HTTP/3、WebSocket、TLS 1.3 等现代网络协议。',
-    license: 'MIT', size: '1.2 MB',
-    dependencies: ['libcurl', 'openssl', 'zlib'],
-    files: [
-      { path: '/usr/bin/curl', size: '256 KB' },
-      { path: '/usr/lib/libcurl.so.4', size: '512 KB' },
-      { path: '/usr/share/man/man1/curl.1.gz', size: '48 KB' },
-    ],
-  },
-  {
-    name: 'git', version: '2.47.0', status: 'updatable',
-    description: '分布式版本控制系统，用于追踪文件变更和协同开发。',
-    license: 'GPL-2.0', size: '28.4 MB',
-    dependencies: ['curl', 'openssl', 'zlib', 'perl'],
-    files: [
-      { path: '/usr/bin/git', size: '4.2 MB' },
-      { path: '/usr/libexec/git-core', size: '22.1 MB' },
-      { path: '/usr/share/git-core', size: '2.1 MB' },
-    ],
-  },
-  {
-    name: 'python3', version: '3.13.0', status: 'installed',
-    description: 'Python 是一种解释型、面向对象的高级编程语言，具有动态语义。',
-    license: 'PSF', size: '85.3 MB',
-    dependencies: ['openssl', 'sqlite', 'bzip2', 'libffi'],
-    files: [
-      { path: '/usr/bin/python3', size: '16 KB' },
-      { path: '/usr/lib/python3.13', size: '78.2 MB' },
-      { path: '/usr/share/doc/python3', size: '7.1 MB' },
-    ],
-  },
-  {
-    name: 'vim', version: '9.1.0', status: 'installed',
-    description: '高度可配置的文本编辑器，为高效编辑而构建。',
-    license: 'Vim', size: '32.1 MB',
-    dependencies: ['ncurses', 'acl'],
-    files: [
-      { path: '/usr/bin/vim', size: '3.6 MB' },
-      { path: '/usr/share/vim/vim91', size: '28.5 MB' },
-    ],
-  },
-  {
-    name: 'eslint', version: '8.57.0', status: 'updatable',
-    description: '可插拔的 JavaScript/TypeScript 代码检查工具。',
-    license: 'MIT', size: '12.8 MB',
-    dependencies: ['nodejs', 'npm'],
-    files: [{ path: '/usr/lib/node_modules/eslint', size: '12.8 MB' }],
-  },
-  {
-    name: 'rustc', version: '1.82.0', status: 'available',
-    description: 'Rust 编程语言的编译器，注重安全性和性能。',
-    license: 'MIT/Apache-2.0', size: '185.6 MB',
-    dependencies: ['llvm', 'cmake', 'pkg-config'],
-    files: [],
-  },
-  {
-    name: 'docker', version: '27.3.1', status: 'available',
-    description: '容器化平台，用于构建、共享和运行容器应用。',
-    license: 'Apache-2.0', size: '95.2 MB',
-    dependencies: ['containerd', 'runc'],
-    files: [],
-  },
-  {
-    name: 'nodejs', version: '22.14.0', status: 'installed',
-    description: '基于 Chrome V8 引擎的 JavaScript 运行时。',
-    license: 'MIT', size: '85.3 MB',
-    dependencies: ['openssl', 'zlib', 'icu'],
-    files: [
-      { path: '/usr/bin/node', size: '2.1 MB' },
-      { path: '/usr/lib/node_modules', size: '78.4 MB' },
-      { path: '/usr/share/doc/node', size: '4.8 MB' },
-    ],
-  },
+const NAV: { id: Section; label: string }[] = [
+  { id: 'buttons', label: '按钮 Button' },
+  { id: 'cards', label: '卡片 Card' },
+  { id: 'list-items', label: '列表项 List Item' },
+  { id: 'tabs', label: '标签页 Tabs' },
+  { id: 'progress', label: '进度条 Progress' },
+  { id: 'search', label: '搜索栏 Search' },
+  { id: 'spinner', label: '加载 Spinner' },
+  { id: 'badges', label: '状态徽标 Badge' },
+  { id: 'typography', label: '排版 Typography' },
+  { id: 'colors', label: '颜色 Colors' },
 ];
 
-/* ── Icon SVGs ── */
+/* ── Helper ── */
+function DocBlock({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <section className="doc-block">
+      <h2 className="doc-block__title">{title}</h2>
+      {desc && <p className="doc-block__desc">{desc}</p>}
+      {children}
+    </section>
+  );
+}
 
-const SearchIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-  </svg>
-);
+function DemoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="demo-row">
+      <span className="demo-row__label">{label}</span>
+      <div className="demo-row__content">{children}</div>
+    </div>
+  );
+}
 
-const PackageIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-    <path d="m16 16 2-2-2-2"/><path d="M12 18h5"/><rect width="20" height="14" x="2" y="5" rx="2"/>
-  </svg>
-);
+function Swatch({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="swatch">
+      <div className="swatch__color" style={{ background: color }} />
+      <div className="swatch__info">
+        <span className="swatch__hex">{color}</span>
+        <span className="swatch__label">{label}</span>
+      </div>
+    </div>
+  );
+}
 
-const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-);
-
-const AlertIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>
-  </svg>
-);
-
-const SettingsIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-    <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-  </svg>
-);
-
-/* ── App ── */
+/* ══════════════════════════════════════ */
 
 export default function App() {
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string>('curl');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [installProgress, setInstallProgress] = useState<number | undefined>(undefined);
-  const [loading, setLoading] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    // 跟随系统
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    return 'dark';
+  });
+  const [nav, setNav] = useState<Section>('buttons');
+  const [progressVal, setProgressVal] = useState(68);
 
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-  };
+  // 应用主题到 <html>
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
-  const installed = packages.filter(p => p.status === 'installed');
-  const updatable = packages.filter(p => p.status === 'updatable');
-  const available = packages.filter(p => p.status === 'available');
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
-  const filteredInstalled = installed.filter(p => p.name.includes(search.toLowerCase()));
-  const filteredUpdatable = updatable.filter(p => p.name.includes(search.toLowerCase()));
-  const filteredAvailable = available.filter(p => p.name.includes(search.toLowerCase()));
+  /* ── Section refs ── */
+  const sectionRefs = useRef<Record<Section, HTMLElement | null>>({} as any);
 
-  const pkg = packages.find(p => p.name === selected)!;
-
-  const handleInstall = () => {
-    setLoading(selected);
-    setInstallProgress(0);
-    const iv = setInterval(() => {
-      setInstallProgress(prev => {
-        const n = (prev ?? 0) + Math.random() * 15;
-        if (n >= 100) {
-          clearInterval(iv);
-          setLoading(null);
-          setInstallProgress(undefined);
-          return undefined;
-        }
-        return Math.min(n, 100);
-      });
-    }, 200);
+  const scrollTo = (id: Section) => {
+    setNav(id);
+    sectionRefs.current[id]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -181,216 +94,242 @@ export default function App() {
       {/* ══ Title Bar ══ */}
       <header className="titlebar">
         <span className="titlebar__title">
-          OPT<span className="titlebar__subtitle"> · Package Manager</span>
+          NOTHING UI <span className="titlebar__subtitle">Component Gallery v1.2</span>
         </span>
         <div className="titlebar__actions">
-          <button className="titlebar__btn" onClick={toggleTheme} title="切换主题">
+          <button className="titlebar__btn" onClick={toggleTheme} title={`切换到${theme === 'dark' ? '浅色' : '深色'}模式`}>
             {theme === 'dark' ? '☀' : '☾'}
           </button>
-          <button className="titlebar__btn" title="设置">
-            <SettingsIcon />
-          </button>
-          <span className="titlebar__separator" />
-          <button className="titlebar__btn titlebar__btn--close" title="关闭">×</button>
+          <button className="titlebar__btn" title="设置"><SettingsIcon /></button>
         </div>
       </header>
 
       {/* ══ Sidebar ══ */}
       <aside className="sidebar">
-        <div className="sidebar__search">
-          <SearchBar
-            icon={<SearchIcon />}
-            placeholder="搜索软件包..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="sidebar__list">
-          <SectionHeader>已安装 ({filteredInstalled.length})</SectionHeader>
-          {filteredInstalled.map(p => (
+        <div className="sidebar__nav">
+          {NAV.map(item => (
             <ListItem
-              key={p.name}
-              active={selected === p.name}
-              prefix={selected === p.name ? '▸' : '·'}
-              icon={<PackageIcon />}
-              meta={`v${p.version}`}
-              onClick={() => { setSelected(p.name); }}
+              key={item.id}
+              active={nav === item.id}
+              prefix={nav === item.id ? '▸' : undefined}
+              onClick={() => scrollTo(item.id)}
             >
-              {p.name}
+              {item.label}
             </ListItem>
           ))}
-
-          {filteredUpdatable.length > 0 && (
-            <>
-              <SectionHeader>可更新 ({filteredUpdatable.length})</SectionHeader>
-              {filteredUpdatable.map(p => (
-                <ListItem
-                  key={p.name}
-                  active={selected === p.name}
-                  prefix={selected === p.name ? '▸' : '·'}
-                  icon={<PackageIcon />}
-                  meta={`${p.version} → new`}
-                  onClick={() => { setSelected(p.name); }}
-                >
-                  {p.name}
-                </ListItem>
-              ))}
-            </>
-          )}
-
-          {filteredAvailable.length > 0 && (
-            <>
-              <SectionHeader>未安装 ({filteredAvailable.length})</SectionHeader>
-              {filteredAvailable.map(p => (
-                <ListItem
-                  key={p.name}
-                  active={selected === p.name}
-                  prefix={selected === p.name ? '▸' : '·'}
-                  icon={<PackageIcon />}
-                  meta={`v${p.version}`}
-                  onClick={() => setSelected(p.name)}
-                >
-                  {p.name}
-                </ListItem>
-              ))}
-            </>
-          )}
         </div>
       </aside>
 
-      {/* ══ Main Content ══ */}
-      <main className="detail">
-        {/* Header */}
-        <div className="detail__header">
-          <span className="detail__name">{pkg.name}</span>
-          <span className="detail__version">v{pkg.version}</span>
-          <StatusBadge
-            type={pkg.status === 'installed' ? 'success' : pkg.status === 'updatable' ? 'warning' : 'info'}
-            icon={<CheckIcon />}
-          >
-            {pkg.status === 'installed' ? '已安装' : pkg.status === 'updatable' ? '可更新' : '未安装'}
-          </StatusBadge>
-        </div>
+      {/* ══ Content ══ */}
+      <main className="content" onScroll={() => {}}>
+        <div className="content__inner">
 
-        {/* Description */}
-        <p className="detail__desc">{pkg.description}</p>
+          {/* ══ 1. Buttons ══ */}
+          <section ref={el => { sectionRefs.current.buttons = el; }}>
+            <DocBlock title="按钮 Button" desc="三种变体（填充/轮廓/文本）× 三种颜色（Primary/Neutral/Danger）× 三种尺寸（24/32/40px）。按钮无加载态时支持图标前缀。">
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Filled（填充按钮）</h3>
+                <DemoRow label="Primary"><Button variant="filled" color="primary" size="small">小</Button><Button variant="filled" color="primary">中 安装</Button><Button variant="filled" color="primary" size="large">大 更新</Button></DemoRow>
+                <DemoRow label="Neutral"><Button variant="filled" color="neutral">取消</Button></DemoRow>
+                <DemoRow label="Danger"><Button variant="filled" color="danger">删除</Button></DemoRow>
+                <DemoRow label="Disabled"><Button variant="filled" disabled>禁用</Button></DemoRow>
+                <DemoRow label="Loading"><Button variant="filled" loading>加载中</Button></DemoRow>
+                <DemoRow label="Icon"><Button variant="filled" icon={<PkgIcon />}>安装包</Button></DemoRow>
+              </Card>
 
-        {/* Tabs */}
-        <Tabs
-          tabs={[
-            { id: 'info', label: '信息' },
-            { id: 'files', label: '文件清单' },
-            { id: 'cmd', label: '命令行' },
-          ]}
-          activeId="info"
-          onChange={() => {}}
-        />
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Outline（轮廓按钮）</h3>
+                <DemoRow label="Primary"><Button variant="outline" color="primary">卸载</Button></DemoRow>
+                <DemoRow label="Danger"><Button variant="outline" color="danger">强制删除</Button></DemoRow>
+                <DemoRow label="Disabled"><Button variant="outline" disabled>禁用</Button></DemoRow>
+              </Card>
 
-        {/* Info Card */}
-        <Card elevation="raised" style={{ marginTop: 'var(--space-4)' }}>
-          <div className="info-grid">
-            <div className="info-row"><span className="info-label">版本</span><span className="info-value">{pkg.version}</span></div>
-            <div className="info-row"><span className="info-label">许可证</span><span className="info-value">{pkg.license}</span></div>
-            <div className="info-row"><span className="info-label">大小</span><span className="info-value">{pkg.size}</span></div>
-            <div className="info-row">
-              <span className="info-label">依赖</span>
-              <span className="info-value">
-                {pkg.dependencies.map((d, i) => (
-                  <span key={d}>
-                    <span className="info-link">{d}</span>
-                    {i < pkg.dependencies.length - 1 ? ', ' : ''}
-                  </span>
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Text（文本按钮）</h3>
+                <DemoRow label="Primary"><Button variant="text" color="primary">了解更多</Button></DemoRow>
+                <DemoRow label="Neutral"><Button variant="text" color="neutral">取消</Button></DemoRow>
+                <DemoRow label="Danger"><Button variant="text" color="danger">移除</Button></DemoRow>
+                <DemoRow label="Disabled"><Button variant="text" disabled>禁用</Button></DemoRow>
+              </Card>
+            </DocBlock>
+          </section>
+
+          {/* ══ 2. Cards ══ */}
+          <section ref={el => { sectionRefs.current.cards = el; }}>
+            <DocBlock title="卡片 Card" desc="五级 Elevation：Flat → Slightly Raised → Elevated → Modal → Top-Level。每级自动映射 surface 层级和层叠阴影。">
+              <div className="card-grid">
+                {(['flat', 'raised', 'elevated', 'modal'] as const).map(el => (
+                  <Card key={el} elevation={el}>
+                    <span className="card-label">{el}</span>
+                    <p className="card-desc">Surface + Shadow 自动映射。通过 elevation 属性控制层级。</p>
+                  </Card>
                 ))}
-              </span>
-            </div>
-          </div>
-        </Card>
+              </div>
+            </DocBlock>
+          </section>
 
-        {/* File List */}
-        {pkg.files.length > 0 && (
-          <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
-            <table className="file-table">
-              <thead>
-                <tr>
-                  <th>路径</th>
-                  <th className="file-table__size">大小</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pkg.files.map(f => (
-                  <tr key={f.path}>
-                    <td className="file-table__path">{f.path}</td>
-                    <td className="file-table__size">{f.size}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        )}
+          {/* ══ 3. List Items ══ */}
+          <section ref={el => { sectionRefs['list-items'].current = el; }}>
+            <DocBlock title="列表项 List Item" desc="32px 标准高度。支持 active 选中态（2px 左侧指示器 + 12% accent 背景）、icon 左侧图标、meta 右侧元信息、prefix 展开前缀、indent 树形缩进。">
+              <Card elevation="flat" style={{ padding: '8px 0' }}>
+                <ul style={{ listStyle: 'none' }}>
+                  <ListItem active prefix="▸" icon={<PkgIcon />} meta="v22.14">nodejs</ListItem>
+                  <ListItem prefix="·" icon={<PkgIcon />} meta="v5.8">typescript</ListItem>
+                  <ListItem prefix="·" meta="installed">eslint</ListItem>
+                  <ListItem prefix="·">prettier</ListItem>
+                  <ListItem prefix="·" indent={1} meta="19.8MB">pip</ListItem>
+                  <ListItem prefix="·" indent={1} meta="2.1MB">venv</ListItem>
+                  <ListItem prefix="·" indent={2} meta="deep">nested</ListItem>
+                </ul>
+              </Card>
+            </DocBlock>
+          </section>
 
-        {/* Command Card */}
-        <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
-          <pre className="cmd-block">
-            <span className="cmd-prompt">$</span> opt install {pkg.name}
-          </pre>
-          <pre className="cmd-block">
-            <span className="cmd-prompt">$</span> opt upgrade {pkg.name}
-          </pre>
-        </Card>
+          {/* ══ 4. Tabs ══ */}
+          <section ref={el => { sectionRefs.current.tabs = el; }}>
+            <DocBlock title="标签页 Tabs" desc="36px 高度，底部 2px accent 色下划线指示器。支持图标前缀。">
+              <Card elevation="flat" style={{ padding: 0 }}>
+                <Tabs
+                  tabs={[
+                    { id: 'info', label: '信息' },
+                    { id: 'files', label: '文件清单', icon: <PkgIcon /> },
+                    { id: 'deps', label: '依赖' },
+                    { id: 'cmd', label: '命令行' },
+                  ]}
+                  activeId="info"
+                  onChange={() => {}}
+                />
+                <div style={{ padding: 'var(--space-4)', color: 'var(--text-secondary)', font: 'var(--text-body-sm)' }}>
+                  标签 "信息" 当前选中，底部 2px accent 色下划线指示器。
+                </div>
+              </Card>
+            </DocBlock>
+          </section>
 
-        {/* Warning (uninstall) */}
-        {pkg.status === 'installed' && (
-          <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
-            <div className="warning-row">
-              <span className="warning-icon"><AlertIcon /></span>
-              <span className="warning-text">
-                注意: {pkg.name} 是已安装的软件包，卸载可能影响依赖它的其他程序
-              </span>
-            </div>
-          </Card>
-        )}
+          {/* ══ 5. Progress Bars ══ */}
+          <section ref={el => { sectionRefs.current.progress = el; }}>
+            <DocBlock title="进度条 Progress Bar" desc="4px 高度。确定态：平滑宽度过渡。不定态：1.5s 循环滑动动画。">
+              <Card elevation="flat">
+                <DemoRow label={`确定 ${progressVal}%`}>
+                  <div style={{ flex: 1 }}><ProgressBar value={progressVal} /></div>
+                  <Button variant="text" size="small" onClick={() => setProgressVal(p => Math.max(0, p - 10))}>-10</Button>
+                  <Button variant="text" size="small" onClick={() => setProgressVal(p => Math.min(100, p + 10))}>+10</Button>
+                </DemoRow>
+                <DemoRow label="不定态"><div style={{ flex: 1 }}><ProgressBar /></div></DemoRow>
+              </Card>
+            </DocBlock>
+          </section>
 
-        {/* Progress */}
-        {loading === selected && installProgress !== undefined && (
-          <div style={{ marginTop: 'var(--space-4)' }}>
-            <ProgressBar value={installProgress} />
-            <div style={{ marginTop: 8, font: 'var(--text-caption)', color: 'var(--text-secondary)' }}>
-              正在安装 {selected}... {Math.round(installProgress)}%
-            </div>
-          </div>
-        )}
+          {/* ══ 6. Search Bar ══ */}
+          <section ref={el => { sectionRefs.current.search = el; }}>
+            <DocBlock title="搜索栏 Search Bar" desc="32px 高度。聚焦时边框变 accent 色，背景升至 surface-3。默认状态边框 border-default。">
+              <Card elevation="flat">
+                <SearchBar icon={<SearchIcon />} placeholder="搜索软件包..." style={{ maxWidth: 400 }} />
+                <p style={{ marginTop: 8, font: 'var(--text-caption)', color: 'var(--text-tertiary)' }}>
+                  点击聚焦查看边框 + 背景色变化
+                </p>
+              </Card>
+            </DocBlock>
+          </section>
 
-        {/* Action Buttons */}
-        <div className="detail__actions">
-          {pkg.status === 'installed' && (
-            <>
-              <Button variant="outline" color="danger" onClick={() => {}}>卸载</Button>
-              <Button variant="text" color="primary" onClick={() => {}}>重新安装</Button>
-              <Button variant="filled" color="primary" onClick={() => alert(`升级 ${pkg.name}`)}>更新到最新版</Button>
-            </>
-          )}
-          {pkg.status === 'updatable' && (
-            <>
-              <Button variant="outline" color="danger" onClick={() => {}}>卸载</Button>
-              <Button variant="filled" color="primary" loading={loading === selected} onClick={handleInstall}>
-                更新到最新版
-              </Button>
-            </>
-          )}
-          {pkg.status === 'available' && (
-            <Button variant="filled" color="primary" loading={loading === selected} onClick={handleInstall}>
-              安装 {pkg.name}
-            </Button>
-          )}
+          {/* ══ 7. Spinners ══ */}
+          <section ref={el => { sectionRefs.current.spinner = el; }}>
+            <DocBlock title="加载指示器 Spinner" desc="1.5px 细线旋转环，accent 色顶部弧线。四种尺寸：12 / 16 / 20 / 24px。">
+              <Card elevation="flat">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={12} /><span className="text-caption">12px</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={16} /><span className="text-caption">16px</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={20} /><span className="text-caption">20px</span></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={24} /><span className="text-caption">24px</span></div>
+                </div>
+              </Card>
+            </DocBlock>
+          </section>
+
+          {/* ══ 8. Status Badges ══ */}
+          <section ref={el => { sectionRefs.current.badges = el; }}>
+            <DocBlock title="状态徽标 Status Badge" desc="22px 高度。5 种状态类型。图标 + 颜色 + 文本三重编码，色盲友好。">
+              <Card elevation="flat">
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <StatusBadge type="success" icon={<CheckIcon />}>已安装</StatusBadge>
+                  <StatusBadge type="warning" icon={<AlertIcon />}>可更新</StatusBadge>
+                  <StatusBadge type="error" icon={<AlertIcon />}>失败</StatusBadge>
+                  <StatusBadge type="info" icon={<ChevronIcon />}>未安装</StatusBadge>
+                  <StatusBadge type="neutral">v2.4.1</StatusBadge>
+                </div>
+              </Card>
+            </DocBlock>
+          </section>
+
+          {/* ══ 9. Typography ══ */}
+          <section ref={el => { sectionRefs.current.typography = el; }}>
+            <DocBlock title="排版 Typography" desc="8 级字号体系（11–24px），高密度布局优化。UI 字体栈优先 Inter 再回退到系统字体，等宽字体使用 JetBrains Mono。">
+              <Card elevation="flat">
+                <div className="typo-show">
+                  <div><span className="typo-label">H1 / 24px / 600</span><span style={{ font: 'var(--text-h1)' }}>页面主标题 Heading One</span></div>
+                  <div><span className="typo-label">H2 / 18px / 600</span><span style={{ font: 'var(--text-h2)' }}>区块标题 Heading Two</span></div>
+                  <div><span className="typo-label">H3 / 15px / 600</span><span style={{ font: 'var(--text-h3)' }}>子区块标题 Heading Three</span></div>
+                  <div><span className="typo-label">Body / 14px / 400</span><span style={{ font: 'var(--text-body)' }}>正文段落内容，用于大段描述性文字。十四像素。</span></div>
+                  <div><span className="typo-label">Body Sm / 13px / 400</span><span style={{ font: 'var(--text-body-sm)' }}>辅助正文，常用于列表项、卡片内文本、表格。</span></div>
+                  <div><span className="typo-label">Code / 13px / 400</span><span style={{ font: 'var(--text-code)' }}>const foo = () =&gt; "monospace";</span></div>
+                  <div><span className="typo-label">Caption / 12px / 400</span><span style={{ font: 'var(--text-caption)' }}>标签、状态文本、时间戳、辅助信息。</span></div>
+                  <div><span className="typo-label">Overline / 11px / 500</span><span style={{ font: 'var(--text-overline)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>分类标签 · 表头</span></div>
+                </div>
+              </Card>
+            </DocBlock>
+          </section>
+
+          {/* ══ 10. Colors ══ */}
+          <section ref={el => { sectionRefs.current.colors = el; }}>
+            <DocBlock title="颜色 Color Palette" desc="6 层 Surface + 3 套 Accent + 4 种 Status。默认深色模式色板，点击标题栏 ☀ 切换到浅色模式。">
+              <Card elevation="flat">
+                <h3 className="card-subtitle">Surfaces（6 层）</h3>
+                <div className="swatch-grid">
+                  {[0,1,2,3,4,5].map(n => (
+                    <Swatch key={n} color={`var(--surface-${n})`} label={`Surface ${n}`} />
+                  ))}
+                </div>
+              </Card>
+
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Accent（强调色）</h3>
+                <div className="swatch-grid">
+                  <Swatch color="var(--accent)" label="Cyan / 默认" />
+                  <Swatch color="var(--accent-green)" label="Green / #4AA26F" />
+                  <Swatch color="var(--accent-orange)" label="Orange" />
+                </div>
+              </Card>
+
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Status（状态色）</h3>
+                <div className="swatch-grid">
+                  <Swatch color="var(--color-success)" label="Success" />
+                  <Swatch color="var(--color-warning)" label="Warning" />
+                  <Swatch color="var(--color-error)" label="Error" />
+                  <Swatch color="var(--color-info)" label="Info" />
+                </div>
+              </Card>
+
+              <Card elevation="flat" style={{ marginTop: 'var(--space-4)' }}>
+                <h3 className="card-subtitle">Text（文本层级）</h3>
+                <div className="swatch-grid">
+                  <Swatch color="var(--text-primary)" label="Primary" />
+                  <Swatch color="var(--text-secondary)" label="Secondary" />
+                  <Swatch color="var(--text-tertiary)" label="Tertiary" />
+                </div>
+              </Card>
+            </DocBlock>
+          </section>
+
+          <div style={{ height: 80 }} />
+
         </div>
       </main>
 
       {/* ══ Status Bar ══ */}
       <footer className="statusbar">
-        <span>OPT v2.4.1</span>
-        <span>共 {packages.length} 个包可用</span>
-        <span>上次更新: 2026-07-02</span>
+        <span>NOTHING UI v1.2</span>
+        <span>Open-sourced under MIT</span>
         <span className="statusbar__hint">Ctrl+K 命令面板</span>
       </footer>
     </div>
