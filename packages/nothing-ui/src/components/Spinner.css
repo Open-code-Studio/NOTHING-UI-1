@@ -1,0 +1,14 @@
+.nothing-spinner {
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: nothing-spin 600ms linear infinite;
+}
+.nothing-spinner--12 { width: 12px; height: 12px; }
+.nothing-spinner--16 { width: 16px; height: 16px; }
+.nothing-spinner--20 { width: 20px; height: 20px; }
+.nothing-spinner--24 { width: 24px; height: 24px; }
+
+@keyframes nothing-spin {
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,4 @@
+.nothing-card {
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-4);
+}
